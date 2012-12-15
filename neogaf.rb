@@ -3,14 +3,14 @@ require "httparty"
 
 module Neogaf
 
-  def self.find_replies(user, md5_pass)
-    user = User.new(user, md5_pass)
+  def self.find_replies(user, pass)
+    user = User.new(user, pass)
     LogsIn.new.with_user(user).login!
     urls = GathersThreadUrls.new.with_user(user).gather
     quotes = GathersQuotes.new(FindsReplies.new.with_user(user).with_history(History.new)).gather(urls)
   end
 
-  User = Struct.new(:name, :md5_pass, :auth_cookie, :id)
+  User = Struct.new(:name, :pass, :auth_cookie, :id)
 
   class History
     def add(url)
@@ -32,8 +32,8 @@ module Neogaf
         :author => post.css('.authorName').text,
         :timestamp => post.css('.postTimestamp').text.strip,
         :text => post.xpath("div[@class='message']/text()").text.strip,
-        :post_url => post.css('.postTimestamp a').attr('href').to_s,
-        :thread_url => "http://www.neogaf.com/forum/showthread.php?p=#{post_id}&highlight=#post#{post_id}"
+        :post_path => post.css('.postTimestamp a').attr('href').to_s,
+        :thread_path => "showthread.php?p=#{post_id}&highlight=#post#{post_id}"
       }
     end
   end
@@ -105,8 +105,8 @@ module Neogaf
         "s"                        => "",
         "securitytoken"            => "guest",
         "do"                       => "login",
-        "vb_login_md5password"     => @user.md5_pass,
-        "vb_login_md5password_utf" => @user.md5_pass
+        "vb_login_md5password"     => @user.pass,
+        "vb_login_md5password_utf" => @user.pass
       })
       raise "Login failed" unless response.body.include?("Thank you for logging in")
       @user.auth_cookie = response.headers["set-cookie"]
