@@ -3,14 +3,14 @@ require "httparty"
 
 module Neogaf
 
-  def self.find_replies(user, pass)
-    user = User.new(user, pass)
+  def self.find_replies(user, md5_pass)
+    user = User.new(user, md5_pass)
     LogsIn.new.with_user(user).login!
     urls = GathersThreadUrls.new.with_user(user).gather
     quotes = GathersQuotes.new(FindsReplies.new.with_user(user).with_history(History.new)).gather(urls)
   end
 
-  User = Struct.new(:name, :pass, :auth_cookie, :id)
+  User = Struct.new(:name, :md5_pass, :auth_cookie, :id)
 
   class History
     def add(url)
@@ -98,7 +98,6 @@ module Neogaf
     include Http
 
     def login!
-      md5_pass = Digest::MD5.hexdigest(@user.pass)
       response = post("login.php?do=login", {
         "vb_login_username"        => @user.name,
         "vb_login_password"        => "",
@@ -106,8 +105,8 @@ module Neogaf
         "s"                        => "",
         "securitytoken"            => "guest",
         "do"                       => "login",
-        "vb_login_md5password"     => md5_pass,
-        "vb_login_md5password_utf" => md5_pass
+        "vb_login_md5password"     => @user.md5_pass,
+        "vb_login_md5password_utf" => @user.md5_pass
       })
       raise "Login failed" unless response.body.include?("Thank you for logging in")
       @user.auth_cookie = response.headers["set-cookie"]
