@@ -1,62 +1,202 @@
-#!/usr/bin/env ruby
-
-require "rubygems"
-require "bundler/setup"
 require "nokogiri"
 require "httparty"
-require 'pry'
 
+module Neogaf
 
-#wrap httparty
-
-class Http
-  def login(user, pass)
-    md5_pass = Digest::MD5.hexdigest(pass)
-    response = post("login.php?do=login", {
-      "vb_login_username"        => user,
-      "vb_login_password"        => "",
-      "cookieuser"               => 1,
-      "s"                        => "",
-      "securitytoken"            => "guest",
-      "do"                       => "login",
-      "vb_login_md5password"     => md5_pass,
-      "vb_login_md5password_utf" => md5_pass
-    })
-    @cookie = response.headers["set-cookie"]
-
-    require 'ruby-debug'; debugger; 2;
+  def self.find_replies(user, pass)
+    user = User.new(user, pass)
+    LogsIn.new.with_user(user).login!
+    urls = GathersThreadUrls.new.with_user(user).gather
+    quotes = GathersQuotes.new(FindsReplies.new.with_user(user).with_history(History.new)).gather(urls)
   end
 
-  def find_posts_by_user
-    response = get("search.php?do=finduser&u=4182")
+  User = Struct.new(:name, :pass, :auth_cookie, :id)
 
-    #do stuff
+  class History
+    def add(url)
+      @urls ||= []
+      @urls << url
+    end
 
-    require 'ruby-debug'; debugger; 2;
+    def searched?(url)
+      @urls.include?(url) if @urls
+    end
   end
 
-private
-
-  def base_path
-    "http://www.neogaf.com/forum/"
+  class Post
+    def post_for(quote)
+      post = quote.parent.parent
+      post_id = post.attr('id').gsub(/post/,'')
+      {
+        :id => post_id,
+        :author => post.css('.authorName').text,
+        :timestamp => post.css('.postTimestamp').text.strip,
+        :text => post.xpath("div[@class='message']/text()").text.strip,
+        :post_url => post.css('.postTimestamp a').attr('href').to_s,
+        :thread_url => "http://www.neogaf.com/forum/showthread.php?p=#{post_id}&highlight=#post#{post_id}"
+      }
+    end
   end
 
-  def post(path, params = {})
-    HTTParty.post("#{base_path}#{path}", :query => params)
+  #mixins
+
+
+  module HasUser
+    def with_user(user)
+      @user = user
+      self
+    end
   end
 
-  def get(path)
-    raise "Not logged in" unless @cookie
+  module HasHistory
+    def with_history(history)
+      @history = history
+      self
+    end
+  end
 
-    HTTParty.get("#{base_path}#{path}",
-      :headers => {'Cookie' => @cookie }
-    )
+  module Http
+    include HasUser
+
+    def post(path, params = {})
+      HTTParty.post("#{base_path}#{path}", :body => params)
+    end
+
+    def get(path)
+      raise "Not logged in" unless @user.auth_cookie
+
+      HTTParty.get("#{base_path}#{path}",
+        :headers => {'Cookie' => @user.auth_cookie }.merge(headers)
+      )
+    end
+
+    def base_path
+      "http://www.neogaf.com/forum/"
+    end
+
+    def headers
+      {}
+    end
+  end
+
+  module Mobile
+    def headers
+      {
+        "User-Agent" => "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A403 Safari/8536.25"
+      }
+    end
+
+    def base_path
+      "http://m.neogaf.com/"
+    end
+  end
+
+  #behaviors
+
+
+  class LogsIn
+    include Http
+
+    def login!
+      md5_pass = Digest::MD5.hexdigest(@user.pass)
+      response = post("login.php?do=login", {
+        "vb_login_username"        => @user.name,
+        "vb_login_password"        => "",
+        "cookieuser"               => 1,
+        "s"                        => "",
+        "securitytoken"            => "guest",
+        "do"                       => "login",
+        "vb_login_md5password"     => md5_pass,
+        "vb_login_md5password_utf" => md5_pass
+      })
+      raise "Login failed" unless response.body.include?("Thank you for logging in")
+      @user.auth_cookie = response.headers["set-cookie"]
+      @user.id = find_user_id(response)
+    end
+
+  private
+
+    def find_user_id(response)
+      response.headers['set-cookie'].match(/bbuserid=(\d+)/)[1]
+    end
+  end
+
+  class GathersThreadUrls
+    include Http
+
+    def gather
+      find_thread_paths_with_posts_by_user(search_for_posts_by_user)
+    end
+
+  private
+
+    def find_thread_paths_with_posts_by_user(doc)
+      doc.xpath("//a[starts-with(@href, 'showthread.php?p=')]").map { |a| a.attr('href') }
+    end
+
+    def search_for_posts_by_user
+      Nokogiri::HTML(get("search.php?do=finduser&u=#{@user.id}").body)
+    end
+  end
+
+
+  class FindsReplies
+    include Http
+    include Mobile
+    include HasHistory
+
+    def find(url, mode = nil)
+      @pages_to_check = 3 if mode == :reset
+      unless @history.searched?(url)
+        doc = load(url)
+        find_quotations(doc) + next_page_quotations(doc)
+      else
+        # puts "skipping #{url} (already searched)"
+        []
+      end
+    end
+
+  private
+
+    def load(url)
+      @history.add(url)
+      # puts "downloading #{url}"
+      Nokogiri::HTML(get(url).body)
+    end
+
+    def find_quotations(doc)
+      quotations = doc.xpath("//div[@class='quoteAuthor']/strong[text()='#{@user.name}']/../..").to_a
+      # puts "Found #{quotations.size} replies"
+
+      quotations.map do |quote|
+        Post.new.post_for(quote)
+      end
+    end
+
+    def next_page_quotations(doc)
+      return [] unless @pages_to_check > 0
+      @pages_to_check -= 1
+      next_link = doc.xpath("//a[@class='nextButton']").first
+      next_link ? find(next_link.attr('href')) : []
+    end
+  end
+
+  class GathersQuotes
+
+    def initialize(finds_replies)
+      @finds_replies = finds_replies
+    end
+
+    def gather(urls)
+      urls.map do |url|
+        @finds_replies.find(url, :reset)
+      end.
+        flatten.
+          uniq { |p| p[:id] }.
+            sort_by { |p| p[:id] }.
+              reverse
+    end
   end
 end
 
-
-
-#script
-gaf = Http.new
-gaf.login(ENV["NEOGAF_USER"], ENV["NEOGAF_PASS"])
-gaf.find_posts_by_user
+#Neogaf.find_replies(ENV["NEOGAF_USER"], ENV["NEOGAF_PASS"])

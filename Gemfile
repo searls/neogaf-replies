@@ -2,4 +2,9 @@ source :rubygems
 
 gem 'nokogiri'
 gem 'httparty'
-gem 'pry'
+gem 'json'
+
+group :development do
+  gem 'pry'
+end
+
