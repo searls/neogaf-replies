@@ -1,0 +1,26 @@
+<h1>Replies</h1>
+<div>
+  <button class="btn btn-info fetch">Fetch</button>
+  <button class="btn btn-danger delete">Delete</button>
+</div>
+
+<% _(obj).each(function(reply){ %>
+  <div class="reply">
+    <div class="author">
+      <span>
+        <%= reply.author %> replied
+        <a href="<%= gafBaseUrl() %><%= reply.post_path %>"><%= reply.timestamp %></a>
+      </span>
+    </div>
+    <div class="message">
+      <%= reply.text %>
+    </div>
+    <div class="link">
+      <a href="<%= gafBaseUrl() %><%= reply.thread_path %>">Go To Post</a>
+    </div>
+  </div>
+<% }) %>
+
+<div>
+  <button class="btn logout">Logout</button>
+</div>

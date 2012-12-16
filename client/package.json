@@ -1,0 +1,17 @@
+{
+  "name": "neogaf-replies-client",
+  "title": "An HTML/JS/CSS app",
+  "version": "0.0.1",
+  "private": true,
+  "author": {
+    "name": "John Doe",
+    "company": "ACME, Inc."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "grunt": "0.3.16",
+    "grunt-contrib": "0.2.0",
+    "lineman": "~0.2.4",
+    "testem": "0.2.13"
+  }
+}
