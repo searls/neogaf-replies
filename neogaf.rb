@@ -194,19 +194,32 @@ module Neogaf
   end
 
   class GathersQuotes
+    MAX_SECONDS = 20
 
     def initialize(finds_replies)
       @finds_replies = finds_replies
     end
 
     def gather(urls)
+      start_time = Time.new
       urls.map do |url|
-        @finds_replies.find(url, :reset)
+        unless expired?(start_time)
+          @finds_replies.find(url, :reset)
+        else
+          puts "Skipping #{url} download, because #{MAX_SECONDS} seconds have transpired"
+        end
       end.
         flatten.
-          uniq { |p| p[:id] }.
-            sort_by { |p| p[:id] }.
-              reverse
+          compact.
+            uniq { |p| p[:id] }.
+              sort_by { |p| p[:id] }.
+                reverse
+    end
+
+  private
+
+    def expired?(start_time)
+      Time.new - start_time > MAX_SECONDS
     end
   end
 end
