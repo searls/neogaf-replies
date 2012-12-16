@@ -28,7 +28,7 @@ class Replies extends Backbone.Collection
     xhr = $.ajax
       url: '/api/replies'
       type: 'post'
-      data: user.toJSON(),
+      data: _(user.toJSON()).extend(requested_at: new Date())
       success: (replies) =>
         return root.app.renderAlert('No replies found') unless replies?.length > 0
         _(replies).each (reply) => @create(reply)

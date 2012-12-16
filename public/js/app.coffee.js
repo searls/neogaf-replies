@@ -79,7 +79,9 @@
       xhr = $.ajax({
         url: '/api/replies',
         type: 'post',
-        data: user.toJSON(),
+        data: _(user.toJSON()).extend({
+          requested_at: new Date()
+        }),
         success: function(replies) {
           if (!((replies != null ? replies.length : void 0) > 0)) {
             return root.app.renderAlert('No replies found');
