@@ -3,9 +3,11 @@ require "httparty"
 
 module Neogaf
 
-  def self.find_replies(user, pass)
-    user = User.new(user, pass)
+  def self.find_replies(user_name, pass)
+    puts "Searching for replies to #{user_name}'s posts"
+    user = User.new(user_name, pass)
     LogsIn.new.with_user(user).login!
+    puts "Logged in as #{user.name}"
     urls = GathersThreadUrls.new.with_user(user).gather
     quotes = GathersQuotes.new(FindsReplies.new.with_user(user).with_history(History.new)).gather(urls)
   end
@@ -64,7 +66,6 @@ module Neogaf
 
     def get(path)
       raise "Not logged in" unless @user.auth_cookie
-
       HTTParty.get("#{base_path}#{path}",
         :headers => {'Cookie' => @user.auth_cookie }.merge(headers)
       )
@@ -134,7 +135,19 @@ module Neogaf
     end
 
     def search_for_posts_by_user
-      Nokogiri::HTML(get("search.php?do=finduser&u=#{@user.id}").body)
+      body = get("search.php?do=finduser&u=#{@user.id}").body
+      raise "Search for threads failed" if body.include?("You are not logged in")
+      search_for_posts_by_user if wait_was_needed?(body)
+      Nokogiri::HTML(body)
+    end
+
+    def wait_was_needed?(body)
+      match = body.match(/Please try again in (\d+) seconds/)
+      if match && match[1]
+        puts "Thread search was asked to wait for #{match[1]} seconds"
+        sleep(match[1].to_i + 1)
+        true
+      end
     end
   end
 
@@ -150,7 +163,7 @@ module Neogaf
         doc = load(url)
         find_quotations(doc) + next_page_quotations(doc)
       else
-        # puts "skipping #{url} (already searched)"
+        puts "skipping #{url} (already searched)"
         []
       end
     end
@@ -159,13 +172,13 @@ module Neogaf
 
     def load(url)
       @history.add(url)
-      # puts "downloading #{url}"
+      puts "downloading #{url}"
       Nokogiri::HTML(get(url).body)
     end
 
     def find_quotations(doc)
       quotations = doc.xpath("//div[@class='quoteAuthor']/strong[text()='#{@user.name}']/../..").to_a
-      # puts "Found #{quotations.size} replies"
+      puts "Found #{quotations.size} replies"
 
       quotations.map do |quote|
         Post.new.post_for(quote)
