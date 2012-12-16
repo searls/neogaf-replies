@@ -8,6 +8,9 @@
   </head>
   <body>
     <script type="text/javascript" src="<%= js %>"></script>
-    <div id="app" class=""></div>
+    <div class="wrapper">
+      <div id="notifications"></div>
+      <div id="app"></div>
+    </div>
   </body>
 </html>

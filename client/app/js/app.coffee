@@ -1,12 +1,13 @@
 root = this
 md5 = root
 
+_.mixin(_.str.exports());
+
 root.gafBaseUrl = ->
   if $(window).width() <= 1024
     "http://m.neogaf.com/"
   else
     "http://www.neogaf.com/forum/"
-
 
 class User extends Backbone.Model
   localStorage: new Backbone.LocalStorage("User")
@@ -24,12 +25,22 @@ class Replies extends Backbone.Collection
   comparator: (reply) -> parseInt(reply.id, 10) * -1
 
   fetchRepliesFor: (user) =>
-    $.post '/api/replies', user.toJSON(), (replies) =>
-      if replies?.length > 0
+    $.ajax
+      url: '/api/replies'
+      type: 'post'
+      data: user.toJSON(),
+      success: (replies) =>
+        return root.app.renderAlert('No replies found') unless replies?.length > 0
         _(replies).each (reply) => @create(reply)
         @trigger('reset')
-      else
-        @trigger('alert', 'No replies found')
+      error: (response) ->
+        root.app.renderAlert """
+                             A failure occurred:
+
+                             #{response.responseText}
+                             """, "danger"
+
+
 
   destroyAll: =>
     _(@models.slice(0)).each (reply) => reply.destroy()
@@ -82,6 +93,33 @@ class RepliesView extends Backbone.Fixins.SuperView
     @user.save(user: undefined, pass: undefined)
     @trigger('navigate')
 
+class AlertView extends Backbone.Fixins.SuperView
+  template: "app/templates/alert.us"
+
+  events:
+    'click .hide-details': 'hideDetails'
+    'click .show-details': 'showDetails'
+
+  templateContext: ->
+    messageLines = _(@model.get('message')).lines()
+
+    hideDetails: @hideDetails
+    type: @model.get('type')
+    block: messageLines.length > 1
+    messageSummary: _(messageLines).first(4).join("<br/>")
+    messageDetails: _(messageLines).rest(4).join("<br/>")
+
+
+  hideDetails: (e) ->
+    e.preventDefault()
+    @hideDetails = true
+    @render()
+
+  showDetails: (e) ->
+    e.preventDefault()
+    @hideDetails = false
+    @render()
+
 class App
   constructor: ->
     @user = _(new User()).tap (u) -> u.fetch()
@@ -94,8 +132,15 @@ class App
   renderPage: =>
     $('#app').html(@currentView().render().el)
     @currentView().delegateEvents()
+    @
 
   currentView: ->
     if @user.loggedIn() then @views.replies else @views.login
 
-$ -> new App().renderPage()
+  renderAlert: (message, type) ->
+    $('#notifications').prepend(
+      new AlertView(model: new Backbone.Model(message: message, type: type)).render().el
+    )
+
+
+$ -> root.app = new App().renderPage()

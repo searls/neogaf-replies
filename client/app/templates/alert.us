@@ -1,0 +1,26 @@
+<div class="alert <%= type ? "alert-"+type : "" %> <%= block ? "alert-block" : "" %>">
+  <button type="button" class="close" data-dismiss="alert">&times;</button>
+
+  <div>
+    <%= messageSummary %>
+  </div>
+
+  <% if(messageDetails.length > 0) { %>
+    <% if(!hideDetails) { %>
+      <p>
+        <a class="hide-details">Hide details</a>
+      </p>
+    <% } %>
+
+    <p class="details <%= hideDetails? "hide" : "" %>">
+      <%= messageDetails %>
+    </p>
+    <p>
+      <% if(hideDetails) { %>
+        <a class="show-details">Show more...</a>
+      <% } else { %>
+        <a class="hide-details">Hide details</a>
+      <% } %>
+    </p>
+  <% } %>
+</div>
