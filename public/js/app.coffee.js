@@ -1,5 +1,5 @@
 (function() {
-  var App, LoginView, Replies, RepliesView, Reply, User, md5, root,
+  var AlertView, App, LoginView, ProgressBarView, Replies, RepliesView, Reply, User, md5, root,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
@@ -7,6 +7,8 @@
   root = this;
 
   md5 = root;
+
+  _.mixin(_.str.exports());
 
   root.gafBaseUrl = function() {
     if ($(window).width() <= 1024) {
@@ -72,16 +74,29 @@
     };
 
     Replies.prototype.fetchRepliesFor = function(user) {
-      var _this = this;
-      return $.post('/api/replies', user.toJSON(), function(replies) {
-        if ((replies != null ? replies.length : void 0) > 0) {
+      var xhr,
+        _this = this;
+      xhr = $.ajax({
+        url: '/api/replies',
+        type: 'post',
+        data: user.toJSON(),
+        success: function(replies) {
+          if (!((replies != null ? replies.length : void 0) > 0)) {
+            return root.app.renderAlert('No replies found');
+          }
           _(replies).each(function(reply) {
             return _this.create(reply);
           });
           return _this.trigger('reset');
-        } else {
-          return _this.trigger('alert', 'No replies found');
+        },
+        error: function(response) {
+          return root.app.renderAlert("A failure occurred:\n\n" + response.responseText, "danger");
         }
+      });
+      this.trigger('fetch:started');
+      root.app.renderProgressBar(xhr);
+      return xhr.always(function() {
+        return _this.trigger('fetch:complete');
       });
     };
 
@@ -144,6 +159,7 @@
     __extends(RepliesView, _super);
 
     function RepliesView() {
+      this.toggleButtons = __bind(this.toggleButtons, this);
       return RepliesView.__super__.constructor.apply(this, arguments);
     }
 
@@ -159,19 +175,34 @@
       var _this = this;
       this.user = options.user;
       this.collection.fetch();
-      return this.collection.on('reset ', function() {
+      this.collection.on('reset ', function() {
         return _this.render();
+      });
+      this.collection.on('fetch:started', function() {
+        return _this.toggleButtons(true);
+      });
+      return this.collection.on('fetch:complete', function() {
+        return _this.toggleButtons(false);
       });
     };
 
     RepliesView.prototype.fetchReplies = function(e) {
       e.preventDefault();
-      return this.collection.fetchRepliesFor(this.user);
+      if (!this.buttonsDisabled) {
+        return this.collection.fetchRepliesFor(this.user);
+      }
     };
 
     RepliesView.prototype.deleteReplies = function(e) {
       e.preventDefault();
-      return this.collection.destroyAll();
+      if (!this.buttonsDisabled) {
+        return this.collection.destroyAll();
+      }
+    };
+
+    RepliesView.prototype.toggleButtons = function(disable) {
+      this.buttonsDisabled = disable;
+      return this.$('button').toggleClass('disabled', disable);
     };
 
     RepliesView.prototype.logout = function(e) {
@@ -184,6 +215,93 @@
     };
 
     return RepliesView;
+
+  })(Backbone.Fixins.SuperView);
+
+  AlertView = (function(_super) {
+
+    __extends(AlertView, _super);
+
+    function AlertView() {
+      return AlertView.__super__.constructor.apply(this, arguments);
+    }
+
+    AlertView.prototype.template = "app/templates/alert.us";
+
+    AlertView.prototype.events = {
+      'click .hide-details': 'hideDetails',
+      'click .show-details': 'showDetails'
+    };
+
+    AlertView.prototype.templateContext = function() {
+      var messageLines;
+      messageLines = _(this.model.get('message')).lines();
+      return {
+        hideDetails: this.hideDetails,
+        type: this.model.get('type'),
+        block: messageLines.length > 1,
+        messageSummary: _(messageLines).first(4).join("<br/>"),
+        messageDetails: _(messageLines).rest(4).join("<br/>")
+      };
+    };
+
+    AlertView.prototype.hideDetails = function(e) {
+      e.preventDefault();
+      this.hideDetails = true;
+      return this.render();
+    };
+
+    AlertView.prototype.showDetails = function(e) {
+      e.preventDefault();
+      this.hideDetails = false;
+      return this.render();
+    };
+
+    return AlertView;
+
+  })(Backbone.Fixins.SuperView);
+
+  ProgressBarView = (function(_super) {
+
+    __extends(ProgressBarView, _super);
+
+    function ProgressBarView() {
+      this.kill = __bind(this.kill, this);
+      return ProgressBarView.__super__.constructor.apply(this, arguments);
+    }
+
+    ProgressBarView.prototype.template = "app/templates/progress_bar.us";
+
+    ProgressBarView.prototype.initialize = function(options) {
+      var _this = this;
+      this.xhr = options.xhr;
+      this.xhr.always(this.kill);
+      this.startTime = new Date();
+      return this.intervalId = setInterval((function() {
+        return _this.render();
+      }), 50);
+    };
+
+    ProgressBarView.prototype.kill = function() {
+      clearInterval(this.intervalId);
+      return this.remove();
+    };
+
+    ProgressBarView.prototype.templateContext = function() {
+      return {
+        percentComplete: this.percentComplete()
+      };
+    };
+
+    ProgressBarView.prototype.percentComplete = function() {
+      var expectedSeconds, fractionComplete, secondsElapsed;
+      secondsElapsed = (new Date() - this.startTime) / 1000;
+      expectedSeconds = 30.0;
+      fractionComplete = secondsElapsed / expectedSeconds;
+      return Math.round(fractionComplete * 100);
+    };
+
+    return ProgressBarView;
 
   })(Backbone.Fixins.SuperView);
 
@@ -212,7 +330,8 @@
 
     App.prototype.renderPage = function() {
       $('#app').html(this.currentView().render().el);
-      return this.currentView().delegateEvents();
+      this.currentView().delegateEvents();
+      return this;
     };
 
     App.prototype.currentView = function() {
@@ -223,12 +342,27 @@
       }
     };
 
+    App.prototype.renderAlert = function(message, type) {
+      return $('#notifications').prepend(new AlertView({
+        model: new Backbone.Model({
+          message: message,
+          type: type
+        })
+      }).render().el);
+    };
+
+    App.prototype.renderProgressBar = function(xhr) {
+      return $('#notifications').prepend(new ProgressBarView({
+        xhr: xhr
+      }).render().el);
+    };
+
     return App;
 
   })();
 
   $(function() {
-    return new App().renderPage();
+    return root.app = new App().renderPage();
   });
 
 }).call(this);

@@ -1,5 +1,37 @@
 this["JST"] = this["JST"] || {};
 
+this["JST"]["app/templates/alert.us"] = function(obj){
+var __p='';var print=function(){__p+=Array.prototype.join.call(arguments, '')};
+with(obj||{}){
+__p+='<div class="alert '+
+( type ? "alert-"+type : "" )+
+' '+
+( block ? "alert-block" : "" )+
+'">\n  <button type="button" class="close" data-dismiss="alert">&times;</button>\n\n  <div>\n    '+
+( messageSummary )+
+'\n  </div>\n\n  ';
+ if(messageDetails.length > 0) { 
+;__p+='\n    ';
+ if(!hideDetails) { 
+;__p+='\n      <p>\n        <a class="hide-details">Hide details</a>\n      </p>\n    ';
+ } 
+;__p+='\n\n    <p class="details '+
+( hideDetails? "hide" : "" )+
+'">\n      '+
+( messageDetails )+
+'\n    </p>\n    <p>\n      ';
+ if(hideDetails) { 
+;__p+='\n        <a class="show-details">Show more...</a>\n      ';
+ } else { 
+;__p+='\n        <a class="hide-details">Hide details</a>\n      ';
+ } 
+;__p+='\n    </p>\n  ';
+ } 
+;__p+='\n</div>';
+}
+return __p;
+};
+
 this["JST"]["app/templates/homepage.us"] = function(obj){
 var __p='';var print=function(){__p+=Array.prototype.join.call(arguments, '')};
 with(obj||{}){
@@ -9,7 +41,7 @@ __p+='<!DOCTYPE html>\n<html>\n  <head>\n    <title>'+
 ( css )+
 '" media="all" />\n  </head>\n  <body>\n    <script type="text/javascript" src="'+
 ( js )+
-'"></script>\n    <div id="app" class=""></div>\n  </body>\n</html>';
+'"></script>\n    <div class="wrapper">\n      <div id="notifications"></div>\n      <div id="app"></div>\n    </div>\n  </body>\n</html>';
 }
 return __p;
 };
@@ -20,6 +52,16 @@ with(obj||{}){
 __p+='<h1>Welcome!</h1>\n<form>\n  <fieldset>\n    <p>\n      <label>Login</label>\n      <input type="text" name="user" value="'+
 ( obj.user || "" )+
 '" placeholder="User name">\n    </p>\n    <p>\n      <label>Password</label>\n      <input type="password" name="pass">\n    </p>\n    <div>\n      <button type="submit" class="btn btn-primary">Login</button>\n    </div>\n  </fieldset>\n</form>';
+}
+return __p;
+};
+
+this["JST"]["app/templates/progress_bar.us"] = function(obj){
+var __p='';var print=function(){__p+=Array.prototype.join.call(arguments, '')};
+with(obj||{}){
+__p+='<div class="progress progress-striped active">\n  <div class="bar" style="width: '+
+( percentComplete )+
+'%;"></div>\n</div>';
 }
 return __p;
 };

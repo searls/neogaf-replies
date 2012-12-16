@@ -7131,13 +7131,34 @@ a.badge:hover {
   position: fixed;
 }
 
-.replies .collection-actions {
-  padding: 5px 0px 15px 0px;
-}
-.replies .collection-actions button {
+.wrapper .replies .collection-actions button {
   margin-right: 5px;
   padding-right: 7px;
 }
-.replies .site-actions {
+.wrapper .replies .site-actions {
   margin-top: 30px;
+}
+/* Large desktop */
+@media (min-width: 1200px) {
+  
+}
+/* Portrait tablet to landscape and desktop */
+@media (min-width: 768px) and (max-width: 979px) {
+  
+}
+/* Landscape phone to portrait tablet */
+@media (max-width: 767px) {
+  
+}
+/* Bigger than a phone */
+@media (min-width: 481px) {
+  .wrapper {
+    padding: 10px 15px 5px 15px;
+  }
+}
+/* Landscape phones and down */
+@media (max-width: 480px) {
+  .wrapper {
+    padding: 10px 0px 0px 0px;
+  }
 }
