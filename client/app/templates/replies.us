@@ -1,26 +1,35 @@
-<h1>Replies</h1>
-<div>
-  <button class="btn btn-info fetch">Fetch</button>
-  <button class="btn btn-danger delete">Delete</button>
-</div>
-
-<% _(obj).each(function(reply){ %>
-  <div class="reply">
-    <div class="author">
-      <span>
-        <%= reply.author %> replied
-        <a href="<%= gafBaseUrl() %><%= reply.post_path %>"><%= reply.timestamp %></a>
-      </span>
-    </div>
-    <div class="message">
-      <%= reply.text %>
-    </div>
-    <div class="link">
-      <a href="<%= gafBaseUrl() %><%= reply.thread_path %>">Go To Post</a>
-    </div>
+<div class="replies">
+  <h1>Replies</h1>
+  <div class="collection-actions">
+    <button class="btn btn-info fetch">
+      Fetch <span class="icon-refresh icon-white"></span>
+    </button>
+    <button class="btn btn-danger delete">
+      Clear <span class="icon-remove icon-white"></span>
+    </button>
   </div>
-<% }) %>
 
-<div>
-  <button class="btn logout">Logout</button>
+  <% _(obj).each(function(reply){ %>
+    <p class="reply">
+      <div class="author">
+        <small>
+          <%= reply.author %>,
+          <a href="<%= gafBaseUrl() %><%= reply.post_path %>"><%= reply.timestamp %></a>
+        </small>
+      </div>
+      <div class="message">
+        <%= reply.text %>
+      </div>
+      <div class="link pull-right">
+        <a href="<%= gafBaseUrl() %><%= reply.thread_path %>" class="strong">
+          Go To Post <span class=" icon-circle-arrow-right"></span>
+        </a>
+      </div>
+    </p>
+    <hr/>
+  <% }) %>
+
+  <div class="site-actions">
+    <button class="btn logout pull-right">Logout</button>
+  </div>
 </div>

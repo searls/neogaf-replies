@@ -8,6 +8,6 @@
   </head>
   <body>
     <script type="text/javascript" src="<%= js %>"></script>
-    <div id="app" class="container-fluid"></div>
+    <div id="app" class=""></div>
   </body>
 </html>
