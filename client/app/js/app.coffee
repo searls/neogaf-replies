@@ -39,7 +39,10 @@ class Replies extends Backbone.Collection
 
                              #{response.responseText}
                              """, "danger"
+    @trigger('fetch:started')
     root.app.renderProgressBar(xhr)
+    xhr.always => @trigger('fetch:complete')
+
 
 
   destroyAll: =>
@@ -79,14 +82,20 @@ class RepliesView extends Backbone.Fixins.SuperView
     @user = options.user
     @collection.fetch()
     @collection.on('reset ', => @render())
+    @collection.on('fetch:started', => @toggleButtons(true))
+    @collection.on('fetch:complete', => @toggleButtons(false))
 
   fetchReplies: (e) ->
     e.preventDefault()
-    @collection.fetchRepliesFor(@user)
+    @collection.fetchRepliesFor(@user) unless @buttonsDisabled
 
   deleteReplies: (e) ->
     e.preventDefault()
-    @collection.destroyAll()
+    @collection.destroyAll() unless @buttonsDisabled
+
+  toggleButtons: (disable) =>
+    @buttonsDisabled = disable
+    @$('button').toggleClass('disabled', disable)
 
   logout: (e) ->
     e.preventDefault()
@@ -108,7 +117,6 @@ class AlertView extends Backbone.Fixins.SuperView
     block: messageLines.length > 1
     messageSummary: _(messageLines).first(4).join("<br/>")
     messageDetails: _(messageLines).rest(4).join("<br/>")
-
 
   hideDetails: (e) ->
     e.preventDefault()
