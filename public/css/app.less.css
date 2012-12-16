@@ -1,0 +1,10 @@
+.replies .collection-actions {
+  padding: 5px 0px 15px 0px;
+}
+.replies .collection-actions button {
+  margin-right: 5px;
+  padding-right: 7px;
+}
+.replies .site-actions {
+  margin-top: 30px;
+}
