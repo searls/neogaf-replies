@@ -25,7 +25,7 @@ class Replies extends Backbone.Collection
   comparator: (reply) -> parseInt(reply.id, 10) * -1
 
   fetchRepliesFor: (user) =>
-    $.ajax
+    xhr = $.ajax
       url: '/api/replies'
       type: 'post'
       data: user.toJSON(),
@@ -39,7 +39,7 @@ class Replies extends Backbone.Collection
 
                              #{response.responseText}
                              """, "danger"
-
+    root.app.renderProgressBar(xhr)
 
 
   destroyAll: =>
@@ -120,6 +120,29 @@ class AlertView extends Backbone.Fixins.SuperView
     @hideDetails = false
     @render()
 
+class ProgressBarView extends Backbone.Fixins.SuperView
+  template: "app/templates/progress_bar.us"
+
+  initialize: (options) ->
+    @xhr = options.xhr
+    @xhr.always(@kill)
+    @startTime = new Date()
+    @intervalId = setInterval((=> @render()), 50)
+
+  kill: =>
+    clearInterval(@intervalId)
+    @remove()
+
+  templateContext: ->
+    percentComplete: @percentComplete()
+
+  percentComplete: ->
+    secondsElapsed = (new Date() - @startTime) / 1000
+    expectedSeconds = 30.0
+    fractionComplete = secondsElapsed / expectedSeconds
+    Math.round(fractionComplete * 100)
+
+
 class App
   constructor: ->
     @user = _(new User()).tap (u) -> u.fetch()
@@ -141,6 +164,9 @@ class App
     $('#notifications').prepend(
       new AlertView(model: new Backbone.Model(message: message, type: type)).render().el
     )
+
+  renderProgressBar: (xhr) ->
+    $('#notifications').prepend(new ProgressBarView(xhr: xhr).render().el)
 
 
 $ -> root.app = new App().renderPage()
